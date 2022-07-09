@@ -1,5 +1,5 @@
 from flask import Flask
-from flask_restful import Api, Resource, marshal_with, fields, abort
+from flask_restful import Api, Resource, marshal_with, fields, abort, reqparse
 from flask_sqlalchemy import SQLAlchemy
 import time
 import threading
@@ -29,6 +29,10 @@ scan_resource_fields = {
     'status': fields.String,
     'timestamp': fields.String
 }
+
+scan_put_args = reqparse.RequestParser()
+scan_put_args.add_argument("simulate-error", type=bool, help="For testing", required=False)
+scan_put_args.add_argument("sleeping-time", type=int, help="For testing", required=False)
 
 # Flask and SQLAlchemy Init
 app = Flask(__name__)
@@ -68,13 +72,13 @@ def update_scan_status(scan_id, status):
     db.session.commit()
 
 
-def scan_process(scan_ids, simulate_error=False):
+def scan_process(scan_ids, simulate_error=False, sleeping_time=10):
     for scan_id in scan_ids:
         status = status_list[Statuses.ERROR]
         print("Started Scan ...")
         update_scan_status(scan_id, status_list[Statuses.RUNNING])  # To Running
         print(threading.current_thread().name)
-        time.sleep(10)
+        time.sleep(sleeping_time)
         if not simulate_error:
             print("completed .....")
             status = status_list[Statuses.COMPLETE]
@@ -83,6 +87,7 @@ def scan_process(scan_ids, simulate_error=False):
 
 def add_new_scan(scan_id):
     scan = ScanModel(id=scan_id.count, status=status_list[Statuses.ACCEPTED], timestamp=str(datetime.now()))
+    print(f"New scan been added. Scan id: {scan_id.count}. Status: {scan.status}")
     if not scan:
         return None
     db.session.add(scan)
@@ -119,17 +124,25 @@ class ScanStatus(Resource):
 # New scan resource
 # /new-scan
 class ScanIngest(Resource):
-    def __init__(self, simulate_error=False):
+    def __init__(self, simulate_error=False, sleeping_time=10):
         self.simulate_error = simulate_error
+        self.sleeping_time = sleeping_time
 
     @marshal_with(scan_resource_fields)
     def put(self):
+        # For simulating an error
+        args = scan_put_args.parse_args()
+        if args['simulate-error']:
+            self.simulate_error = True
+        if args['sleeping-time']:
+            self.sleeping_time = args['sleeping-time']
+
         scan_id = generate_scan_id()
         scan = add_new_scan(scan_id)
         if not scan:
             scan.status = status_list[Statuses.ERROR]
             return scan, 500
-        threading.Thread(target=scan_process, args=([scan_id.count], self.simulate_error)).start()
+        threading.Thread(target=scan_process, args=([scan_id.count], self.simulate_error, self.sleeping_time)).start()
         update_last_scan_id(scan_id)
         return scan, 201
 
