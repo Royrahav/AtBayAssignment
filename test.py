@@ -12,7 +12,7 @@ mock_json = """{
 	"mock": [
 		{
 			"mock_id": "0"
-		}gitg
+		}
 	]
 }"""
 
