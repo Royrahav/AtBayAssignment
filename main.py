@@ -37,9 +37,9 @@ scan_resource_fields = {
 }
 
 # Scan request argument list
-scan_put_args = reqparse.RequestParser()
-scan_put_args.add_argument("simulate-error", type=bool, help="For testing", required=False)
-scan_put_args.add_argument("sleeping-time", type=int, help="For testing", required=False)
+scan_post_args = reqparse.RequestParser()
+scan_post_args.add_argument("simulate-error", type=bool, help="For testing", required=False)
+scan_post_args.add_argument("sleeping-time", type=int, help="For testing", required=False)
 
 ###################################
 #   Flask and SQLAlchemy Init     #
@@ -94,8 +94,8 @@ def clear_old_statuses(minutes):
     Clears statuses that are older than "minutes" minutes ago
     """
     current_time = datetime.now()
-    twenty_minutes_ago = current_time - timedelta(minutes=minutes)
-    db.session.query(ScanModel).filter(ScanModel.timestamp < twenty_minutes_ago).delete()
+    minutes_ago = current_time - timedelta(minutes=minutes)
+    db.session.query(ScanModel).filter(ScanModel.timestamp < minutes_ago).delete()
     db.session.commit()
 
 
@@ -188,7 +188,7 @@ class ScanStatus(Resource):
 class ScanIngest(Resource):
     """
     scan_ingest resource logic
-    Has only PUT request, to initiate a new scan
+    Has only POST request, to initiate a new scan
     Works threaded, so it creates a new thread for each scan request
     Refers to the "Ingest" section in the assignment specifications
 
@@ -201,9 +201,9 @@ class ScanIngest(Resource):
         self.sleeping_time = sleeping_time
 
     @marshal_with(scan_resource_fields)
-    def put(self):
+    def post(self):
         # For simulating an error
-        args = scan_put_args.parse_args()
+        args = scan_post_args.parse_args()
         if args['simulate-error']:
             self.simulate_error = True
         if args['sleeping-time']:

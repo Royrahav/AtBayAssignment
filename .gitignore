@@ -3,3 +3,4 @@ DispatchProcessor.py
 DispatchStatusHandler.py
 venv
 .idea
+.gitignore
